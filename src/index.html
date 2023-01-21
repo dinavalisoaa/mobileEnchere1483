@@ -1,0 +1,106 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import reportWebVitals from './reportWebVitals';
+import { defineCustomElements as jeepSqlite, applyPolyfills, JSX as LocalJSX } from "jeep-sqlite/loader";
+import { HTMLAttributes } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
+
+type StencilToReact<T> = {
+  [P in keyof T]?: T[P] & Omit<HTMLAttributes<Element>, 'className'> & {
+    class?: string;
+  };
+};
+
+declare global {
+  export namespace JSX {
+    interface IntrinsicElements extends StencilToReact<LocalJSX.IntrinsicElements> {
+    }
+  }
+}
+
+applyPolyfills().then(() => {
+  jeepSqlite(window);
+});
+window.addEventListener('DOMContentLoaded', async () => {
+  console.log('$$$ in index $$$');
+  const platform = Capacitor.getPlatform();
+  const sqlite: SQLiteConnection = new SQLiteConnection(CapacitorSQLite)
+  try {
+    if (platform === "web") {
+      const jeepEl = document.createElement("jeep-sqlite");
+      document.body.appendChild(jeepEl);
+      await customElements.whenDefined('jeep-sqlite');
+      await sqlite.initWebStore();
+    }
+    const ret = await sqlite.checkConnectionsConsistency();
+    console.log(ret);
+    const isConn = (await sqlite.isConnection("DBRencesement", false)).result;
+    console.log(isConn);
+    var db: SQLiteDBConnection
+    if (ret.result && isConn) {
+      db = await sqlite.retrieveConnection("DBRencesement", false);
+    } else {
+      db = await sqlite.createConnection("DBRencesement", false, "no-encryption", 1, false);
+    }
+    console.log(db);
+    let q1 = `
+        DROP TABLE Personne`;
+    await db.open();
+    let q = `
+    CREATE TABLE IF NOT EXISTS Personne (
+      id INTEGER AUTOINCREMENT PRIMARY KEY,
+      Nom VARCHAR(255) NOT NULL,
+      Prenom VARCHAR(255),
+      Adresse VARCHAR(255),
+      Sexe VARCHAR(255),
+      Dtn VARCHAR(255),
+      Etat VARCHAR(30) DEFAULT NULL
+    );`
+      let qSynchro=`
+      CREATE TABLE IF NOT EXISTS Synchro (
+        id INTEGER PRIMARY KEY,
+        date TEXT
+      );`
+      let sql = `
+      CREATE TABLE IF NOT EXISTS TableSync (
+        id INTEGER PRIMARY KEY,
+        sql varchar(200) not null,
+        etat integer default 0
+      );`
+   await db.execute(q);
+    // const res: any = await db.execute('CREATE DATABASE DBRencesement');
+    // const ress: any = await db.execute(sql);
+  // await db.execute("drop table personne");
+  // await db.execute("delete from tablesync");
+    // await db.execute(qSynchro);
+    // const tab = await db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='Personne';");
+    //const Val = await db.query("SELECT * FROM Personne");
+    // const qValues = await tab.values;
+    // console.log(`res: ${JSON.stringify(res)}`);
+    // await db.close();
+    // await sqlite.closeConnection("DBRencesement", false);
+    const container = document.getElementById('root');
+    const root = createRoot(container!);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+
+    // If you want your app to work offline and load faster, you can change
+    // unregister() to register() below. Note this comes with some pitfalls.
+    // Learn more about service workers: https://cra.link/PWA
+    serviceWorkerRegistration.unregister();
+
+    // If you want to start measuring performance in your app, pass a function
+    // to log results (for example: reportWebVitals(console.log))
+    // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+    reportWebVitals();
+  } catch (err) {
+    console.log(`Error: ${err}`);
+    throw new Error(`Error: ${err}`)
+  }
+});
