@@ -1,0 +1,7 @@
+{
+  "name": "Teplate_List",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react"
+}
